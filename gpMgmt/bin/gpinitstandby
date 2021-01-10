@@ -1,0 +1,803 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) Greenplum Inc 2010. All Rights Reserved. 
+#
+import os
+import sys
+import signal
+
+# import GPDB modules
+try:
+    from gppylib.gpparseopts import *
+    from gppylib.gplog import *
+    from gppylib.commands import unix, gp, base, pg
+    from gppylib import gparray
+    from gppylib.db import dbconn
+    from gppylib.userinput import *
+    from gppylib.operations.initstandby import cleanup_pg_hba_backup_on_segment, update_pg_hba_conf_on_segments, restore_pg_hba_on_segment
+    from gppylib.operations.package import SyncPackages
+    from gppylib.commands.pg import PgBaseBackup
+except ImportError, e:
+    sys.exit('ERROR: Cannot import modules.  Please check that you '
+             'have sourced greenplum_path.sh.  Detail: ' + str(e))
+
+EXECNAME = os.path.split(__file__)[-1]
+
+# initstandby state constants for rollback
+INIT_STANDBY_STATE_NOT_STARTED=0
+INIT_STANDBY_STATE_UPDATE_CATALOG=1
+INIT_STANDBY_STATE_UPDATE_PG_HBA=2
+INIT_STANDBY_STATE_COPY_FILES=3
+INIT_STANDBY_STATE_UPDATE_GPDBID=4
+INIT_STANDBY_STATE_STARTING_STANDBY=5
+
+g_init_standby_state=INIT_STANDBY_STATE_NOT_STARTED
+
+
+# default batch size
+DEFAULT_BATCH_SIZE=16
+
+# backup filename
+PG_HBA_BACKUP = 'pg_hba.conf.gpinitstandby.bak'
+
+_description = """The gpinitstandby utility adds a backup master host to your
+Greenplum Database system. If your system has an existing backup
+master host configured, use the -r option to remove it before adding 
+the new standby master host.
+
+Before running this utility, make sure 
+that the Greenplum Database software is installed on the backup master
+host and that you have exchanged SSH keys between hosts.  This utility
+should be run on the currently active primary master host.
+
+The utility will perform the following steps:
+* Update the Greenplum Database system catalog to remove the
+  existing backup master host information (if the -r option is supplied)
+* Update the Greenplum Database system catalog to add the new backup
+  master host information (use the -n option to skip this step)
+* Edit the pg_hba.conf files of the segment instances to allow access
+  from the newly added standby master.
+* Setup the backup master instance on the alternate master host
+* Start the synchronization process
+
+A backup master host serves as a 'warm standby' in the event of the 
+primary master host becoming nonoperational. The backup master is kept 
+up to date by a transaction log replication process,
+which runs on the backup master host and keeps the data between the 
+primary and backup master hosts synchronized. If the primary master 
+fails, the log replication process is shutdown, and the backup master 
+can be activated in its place by using the gpactivatestandby utility. 
+Upon activation of the backup master, the replicated logs are used to 
+reconstruct the state of the master host at the time of the last 
+successfully committed transaction.
+"""
+
+_usage = """
+"""
+
+class GpInitStandbyException(Exception):
+    pass
+
+
+#-------------------------------------------------------------------------
+def parseargs():
+    """parses and validates command line args."""
+    
+    parser = OptParser(option_class=OptChecker,
+                       version='%prog version $Revision$')
+
+    parser.setHelp([])
+    parser.remove_option('-h')
+    
+    # General options section
+    optgrp = OptionGroup(parser, 'General options')
+    optgrp.add_option('-?', '--help', dest='help', action='store_true',
+                      help='display this help message and exit')
+    optgrp.add_option('-v', dest='version', action='store_true',
+                      help='display version information and exit')
+    parser.add_option_group(optgrp)
+
+    # Logging options section
+    optgrp = OptionGroup(parser, 'Logging options')
+    optgrp.add_option('-q', '--quiet', action='store_true',
+                      help='quiet mode, do not log progress to screen')
+    optgrp.add_option('-l', '--logfile', type='string', default=None,
+                      help='alternative logfile directory')
+    optgrp.add_option('-a', help='don\'t ask to confirm standby master activation',
+                      dest='confirm', default=True, action='store_false')
+    optgrp.add_option('-D', '--debug', action='store_true', default=False,
+                      help='enable debug logging')
+    parser.add_option_group(optgrp)
+
+    # Standby initialization options section
+    optgrp = OptionGroup(parser, 'Standby initialization options')
+    optgrp.add_option('-s', '--standby-host', type='string', dest='standby_host',
+                      help='hostname of system to create standby master on')
+    optgrp.add_option('-P', '--standby-port', type='int', dest='standby_port',
+                      help='port of system to create standby master on')
+    optgrp.add_option('-S', '--standby-datadir', type='string', dest='standby_datadir',
+                      help='datadir of standby master')
+    optgrp.add_option('-n', '--no-update', action='store_true', dest='no_update',
+                      help='do not update system catalog tables')
+    optgrp.add_option('-r', '--remove', action='store_true',
+                      help='remove current warm master standby.  Use this option '
+                      'if the warm master standby host has failed.  This option will '
+                      'need to shutdown the GPDB array to be able to complete the request')
+    optgrp.add_option('', '--hba-hostnames', action='store_true', dest='hba_hostnames',
+                      help='use hostnames instead of CIDR in pg_hba.conf')
+
+    # XXX - This option is added to keep backward compatibility with DCA tools.
+    # But this option plays no role in the whole process, its a No-Op
+    optgrp.add_option('-M', '--mode', type='string', default='smart',
+                      help='use specified mode when stopping the GPDB array.  Default: smart')
+
+    parser.add_option_group(optgrp)
+
+    
+    # Parse the command line arguments
+    (options, args) = parser.parse_args()
+
+    if options.help:
+        parser.print_help()
+        parser.exit(0, None)
+
+    if options.version:
+        parser.print_version()
+        parser.exit(0, None)
+
+    if options.logfile and not os.path.exists(options.logfile):
+        logger.error('Log directory %s does not exist.' % options.logfile)
+        parser.exit(2, None)
+
+    # -s and -n are exclusive
+    if options.standby_host and options.no_update:
+        logger.error('Options -s and -n cannot be specified together.')
+        parser.exit(2, None)
+
+    # -S and -n are exclusive
+    if options.standby_datadir and options.no_update:
+        logger.error('Options -S and -n cannot be specified together.')
+        parser.exit(2, None)
+
+    # -s and -r are exclusive
+    if options.standby_host and options.remove:
+        logger.error('Options -s and -r cannot be specified together.')
+        parser.exit(2, None)
+
+    # we either need to delete or create or start
+    if not options.remove and not options.standby_host and not options.no_update:
+        logger.error('No action provided in the options.')
+        parser.print_help()
+        parser.exit(2, None)
+
+    # check that new standby host is up
+    if options.standby_host:
+        try:
+            gp.Ping.local('check new standby up', options.standby_host)
+        except:
+            logger.error('Unable to ping new standby host %s' % options.standby_host)
+            parser.exit(2, None)
+
+    return options, args
+   
+   
+#-------------------------------------------------------------------------
+def print_summary(options, array, standby_datadir):
+    """Display summary of gpinitstandby operations."""
+    
+    logger.info('-----------------------------------------------------')
+    if options.remove:
+        logger.info('Warm master standby removal parameters')
+    else:
+        logger.info('Greenplum standby master initialization parameters')
+    logger.info('-----------------------------------------------------')
+    logger.info('Greenplum master hostname               = %s' \
+                    % array.master.getSegmentHostName())
+    logger.info('Greenplum master data directory         = %s' \
+                    % array.master.getSegmentDataDirectory())
+    logger.info('Greenplum master port                   = %s' \
+                    % array.master.getSegmentPort())
+    if options.remove:
+        logger.info('Greenplum standby master hostname       = %s' \
+                        % array.standbyMaster.getSegmentHostName())
+    else:
+        logger.info('Greenplum standby master hostname       = %s' \
+                        % options.standby_host)
+
+    if array.standbyMaster:
+        standby_port = array.standbyMaster.getSegmentPort()
+    elif options.standby_port:
+        standby_port = options.standby_port
+    else:
+        standby_port = array.master.getSegmentPort()
+
+    logger.info('Greenplum standby master port           = %d' \
+                    % standby_port)
+
+    if array.standbyMaster:
+        logger.info('Greenplum standby master data directory = %s' \
+                        % array.standbyMaster.getSegmentDataDirectory())
+    else:
+        if standby_datadir:
+            logger.info('Greenplum standby master data directory = %s' % standby_datadir)
+        else:
+            raise GpInitStandbyException('No data directory specified for standby master')
+
+    if not options.remove and options.no_update:
+        logger.info('Greenplum update system catalog         = Off')
+    elif not options.remove:
+        logger.info('Greenplum update system catalog         = On')
+
+    # Confirm the action
+    if options.confirm:
+        if options.remove:
+            yn = ask_yesno(None, 'Do you want to continue with deleting '
+                           'the standby master?', 'N')
+        else:
+            yn = ask_yesno(None, 'Do you want to continue with '
+                           'standby master initialization?', 'N')
+        if not yn:
+            raise GpInitStandbyException('User canceled')
+
+
+#-------------------------------------------------------------------------
+def getDbUrlForInitStandby():
+    """
+    Return the dbconn.DbURL instance that should be used for connecting
+    """
+
+    #
+    # use template1 to avoid using PGDATABASE value (which definitely won't work during initsystem)
+    #
+    return dbconn.DbURL(dbname="template1")
+
+#-------------------------------------------------------------------------
+def delete_standby(options):
+    """Removes the standby master."""
+    try:
+        dburl = getDbUrlForInitStandby()
+        array = gparray.GpArray.initFromCatalog(dburl, utility=True)
+    except:
+        logger.error('Failed to retrieve configuration information from the master.')
+        raise
+    
+    # make sure we have a standby to delete
+    if not array.standbyMaster:
+        logger.error('Request made to remove warm master standby, '  
+                     'but no standby located.')
+        raise GpInitStandbyException('no standby configured')
+    
+    print_summary(options, array, None)
+
+    # Disable Ctrl-C
+    signal.signal(signal.SIGINT,signal.SIG_IGN)
+    
+    try:
+        remove_standby_from_catalog(options, array)
+    except Exception, ex:
+        logger.error('Failed to remove standby master from catalog.')
+        raise GpInitStandbyException(ex)
+    
+    stop_standby(array)
+ 
+    # delete directory
+    remove_standby_datadir(array)
+
+    # Reenable Ctrl-C
+    signal.signal(signal.SIGINT,signal.default_int_handler)
+  
+#-------------------------------------------------------------------------
+def remove_standby_datadir(array):
+    """Removes the data directory on the standby master."""
+
+    # WALREP_FIXME: We should also remove tablespace paths for the server here.
+
+    if array.standbyMaster:
+        logger.info('Removing data directory on standby master...')
+       
+        pool = base.WorkerPool(numWorkers=DEFAULT_BATCH_SIZE)
+        
+        cmd = unix.RemoveDirectory('delete standby datadir',
+                                   array.standbyMaster.getSegmentDataDirectory(), ctxt=base.REMOTE,
+                                   remoteHost=array.standbyMaster.getSegmentHostName())
+        pool.addCommand(cmd)
+
+        pool.join()
+        try:
+            pool.check_results()
+        except Exception, ex:
+            logger.error('Failed to remove data directory on standby master.')
+            raise GpInitStandbyException(ex)
+        finally:
+            pool.haltWork()
+            
+def check_and_start_standby():
+    """Checks if standby master is up and starts the standby master, if stopped."""
+
+    dburl = getDbUrlForInitStandby()
+    array = gparray.GpArray.initFromCatalog(dburl, utility=True)
+    if not array.standbyMaster:
+        logger.error('Cannot use -n option when standby master has not yet been configured')
+        raise GpInitStandbyException('Standby master not configured')
+ 
+    conn = dbconn.connect(dburl, utility=True)
+    sql = "SELECT * FROM pg_stat_replication"
+    cur = dbconn.execSQL(conn, sql)
+    if cur.rowcount >= 1:
+        logger.info("Standy master is already up and running.")
+        return
+
+    standby = array.standbyMaster
+    gp.start_standbymaster(standby.hostname,
+                           standby.datadir,
+                           standby.port,
+                           standby.dbid,
+                           array.getNumSegmentContents())
+    logger.info("Successfully started standby master")
+
+#-------------------------------------------------------------------------
+def get_standby_pg_hba_info(standby_host):
+    standby_ips = unix.InterfaceAddrs.remote('get standby ips', standby_host)
+    current_user = unix.UserId.local('get userid')
+    new_section = ['# standby master host ip addresses\n']
+    for ip in standby_ips:
+        cidr_suffix = '/128' if ':' in ip else '/32' # MPP-15889
+        new_section.append('host\tall\t%s\t%s%s\ttrust\n' % (current_user, ip, cidr_suffix))
+    return new_section
+
+#-------------------------------------------------------------------------
+def create_standby(options):
+    """Creates the standby master."""
+    
+    global g_init_standby_state
+    
+    array = None
+    
+    try:
+        try:
+            dburl = getDbUrlForInitStandby()
+            array = gparray.GpArray.initFromCatalog(dburl, utility=True)
+            
+        except Exception, ex:
+            logger.error('Failed to retrieve configuration information from the master.')
+            raise GpInitStandbyException(ex)
+
+        # prefer a user-passed flag, but default to the same filepath as master
+        standby_datadir = options.standby_datadir or array.master.getSegmentDataDirectory()
+
+        # validate
+        validate_standby_init(options, array, standby_datadir)
+        
+        # display summary
+        print_summary(options, array, standby_datadir)
+        
+        # sync packages
+        # The design decision here is to squash any exceptions resulting from the 
+        # synchronization of packages. We should *not* disturb the user's attempts 
+        # initialize a standby.
+        try:
+            logger.info('Syncing Greenplum Database extensions to standby')
+            SyncPackages(options.standby_host).run()
+        except Exception, e:
+            logger.warning('Syncing of Greenplum Database extensions has failed.')
+            logger.warning('Please run gppkg --clean after successful standby initialization.')
+
+        # Disable Ctrl-C
+        signal.signal(signal.SIGINT,signal.SIG_IGN)
+
+        # update the catalog if needed
+        array = add_standby_to_catalog(options, standby_datadir)
+
+        logger.info('Updating pg_hba.conf file...')
+        update_pg_hba_conf(options, array)
+        logger.debug('Updating pg_hba.conf file on segments...')
+        update_pg_hba_conf_on_segments(array, options.standby_host, options.hba_hostnames)
+        logger.info('pg_hba.conf files updated successfully.')
+
+        copy_master_datadir_to_standby(options, array, standby_datadir)
+        update_postgresql_conf(options, array)
+
+        try:
+            dburl = getDbUrlForInitStandby()
+            array = gparray.GpArray.initFromCatalog(dburl, utility=True)
+            standby = array.standbyMaster
+            g_init_standby_state = INIT_STANDBY_STATE_STARTING_STANDBY
+            gp.start_standbymaster(standby.hostname,
+                                   standby.datadir,
+                                   standby.port,
+                                   standby.dbid,
+                                   array.getNumSegmentContents())
+        except Exception, ex:
+            raise GpInitStandbyException('failed to start standby')
+
+    except Exception, ex:
+        # Something went wrong.  Based on the current state, we can rollback
+        # the operation.
+        logger.error('Failed to create standby')
+        if g_init_standby_state != INIT_STANDBY_STATE_NOT_STARTED:
+            logger.warn('Trying to rollback changes that have been made...')
+
+        if g_init_standby_state == INIT_STANDBY_STATE_UPDATE_CATALOG:
+
+            logger.info('Rolling back catalog change...')
+            undo_catalog_update(options, array)
+
+        elif g_init_standby_state == INIT_STANDBY_STATE_UPDATE_PG_HBA:
+
+            logger.info('Rolling back catalog change...')
+            undo_catalog_update(options, array)
+
+            logger.info('Restoring pg_hba.conf file...')
+            # undo pg_hba.conf change on segment first
+            restore_pg_hba_on_segment(array)
+            # undo pg_hba.conf on master lastly
+            undo_update_pg_hba_conf(array)
+
+        elif (g_init_standby_state == INIT_STANDBY_STATE_COPY_FILES or
+            g_init_standby_state == INIT_STANDBY_STATE_UPDATE_GPDBID):
+
+            logger.info('Rolling back catalog change...')
+            undo_catalog_update(options, array)
+
+            logger.info('Restoring pg_hba.conf file...')
+            restore_pg_hba_on_segment(array)
+            undo_update_pg_hba_conf(array)
+
+        elif g_init_standby_state == INIT_STANDBY_STATE_STARTING_STANDBY:
+
+            # make a clean stop on standby, don't even wait for standby postmaster dies
+            stop_standby(array)
+
+            logger.info('Rolling back catalog change...')
+            undo_catalog_update(options, array)
+
+            logger.info('Restoring pg_hba.conf file...')
+            restore_pg_hba_on_segment(array)
+            undo_update_pg_hba_conf(array)
+
+        raise GpInitStandbyException(ex)
+
+    finally:
+        if (g_init_standby_state == INIT_STANDBY_STATE_UPDATE_PG_HBA or
+            g_init_standby_state == INIT_STANDBY_STATE_COPY_FILES or
+            g_init_standby_state == INIT_STANDBY_STATE_UPDATE_GPDBID or
+            g_init_standby_state == INIT_STANDBY_STATE_STARTING_STANDBY):
+
+            logger.info('Cleaning up pg_hba.conf backup files...')
+            # should cleanup on segments first
+            cleanup_pg_hba_backup_on_segment(array)
+            cleanup_pg_hba_conf_backup(array)
+            logger.info('Backup files of pg_hba.conf cleaned up successfully.')
+
+        # Reenable Ctrl-C
+        signal.signal(signal.SIGINT,signal.default_int_handler)
+            
+#-------------------------------------------------------------------------
+def update_pg_hba_conf(options, array):
+    """Updates the pg_hba.conf file to include the ip addresses of the
+    standby master."""
+    
+    global g_init_standby_state
+
+    logger.debug('Updating pg_hba.conf file on master...')
+
+    g_init_standby_state=INIT_STANDBY_STATE_UPDATE_PG_HBA
+
+    try:
+        master_data_dir = array.master.getSegmentDataDirectory()
+        pg_hba_path = os.path.join(master_data_dir, 'pg_hba.conf')
+        standby_ips = unix.InterfaceAddrs.remote('get standby ips', options.standby_host)
+        # InterfaceAddrs doesn't return local address, but if standby
+        # will be on the same host, we should add it too.
+        if array.master.getSegmentHostName() == options.standby_host:
+            standby_ips.append('127.0.0.1')
+        current_user = unix.UserId.local('get userid')
+        
+        # back it up
+        os.system('cp %s/pg_hba.conf %s/%s' \
+                  % (master_data_dir, master_data_dir, PG_HBA_BACKUP))
+        
+        # read in current pg_hba.conf file
+        fp = open(pg_hba_path, 'r')
+        pg_hba_conf = fp.readlines()
+        fp.close()
+        
+        # Find where the comments stop
+        index = 0
+        while pg_hba_conf[index].strip().startswith('#'):
+            index += 1
+
+        new_section = ['# standby master host ip addresses\n']
+        for ip in standby_ips:
+            if not options.hba_hostnames:
+                cidr_suffix = '/128' if ':' in ip else '/32' # MPP-15889
+                address = ip + cidr_suffix
+            else:
+                address = options.standby_host
+            values = ['host', 'all', current_user, address, 'trust']
+
+            newline = '\t'.join(values) + '\n'
+            if newline not in pg_hba_conf:
+                new_section.append(newline)
+
+            # new replication requires 'replication' string in database
+            # column to allow walsender connections.  We still keep 'all'
+            # because sometimes it is necessary to connect psql from
+            # standby host.  The host is known as trusted standby master
+            # anyway.
+            values[1] = 'replication'
+            newline = '\t'.join(values) + '\n'
+            if newline not in pg_hba_conf:
+                new_section.append(newline)
+
+        # insert new section
+        pg_hba_conf[index:index] = new_section
+        
+        # write it out
+        fp = open(pg_hba_path, 'w')
+        fp.writelines(pg_hba_conf)
+        fp.close()
+
+        # make it effective
+        pg.ReloadDbConf.local('pg_ctl reload', array.master)
+
+    except Exception, ex:
+        logger.error('Failed to update pg_hba.conf file on master.')
+        raise GpInitStandbyException(ex)
+
+
+#-------------------------------------------------------------------------
+def cleanup_pg_hba_conf_backup(array):
+    """Removes the pg_hba.conf backup."""
+    
+    logger.debug('Cleaning up pg_hba.conf backup on master and standby')
+    master_data_dir = array.master.getSegmentDataDirectory()
+    standby_data_dir = array.standbyMaster.getSegmentDataDirectory()
+    
+    try:
+        unix.RemoveFile.local('cleanup master pg_hba.conf backup', '%s/%s' % (master_data_dir, PG_HBA_BACKUP))
+        unix.RemoveFile.remote('cleanup standby pg_hba.conf backup',
+                               array.standbyMaster.getSegmentHostName(),
+                               '%s/%s' % (standby_data_dir, PG_HBA_BACKUP))
+    except:
+        # ignore...
+        pass
+    
+
+#-------------------------------------------------------------------------
+def validate_standby_init(options, array, standby_datadir):
+    """Validates the parameters and environment."""
+    
+    logger.info('Validating environment and parameters for standby initialization...')
+    if array.standbyMaster:
+        logger.error('Standby master already configured')
+        logger.info('If you want to start the stopped standby master, use the -n option')
+        raise GpInitStandbyException('standby master already configured')
+    
+    # make sure we have top level dir
+    base_dir = os.path.dirname(os.path.normpath(standby_datadir))
+    if not unix.FileDirExists.remote('check for parent of data dir',
+                                     options.standby_host,
+                                     base_dir):
+        logger.error('Parent directory %s does not exist on host %s' %(base_dir, options.standby_host))
+        logger.error('This directory must be created before running gpactivatestandby')
+        raise GpInitStandbyException('Parent directory %s does not exist' % base_dir)
+
+    # check that master data dir does not exist on new host unless we are just re-syncing
+    logger.info('Checking for data directory %s on %s' % (standby_datadir, options.standby_host))
+    if unix.FileDirExists.remote('check for data dir', options.standby_host, standby_datadir):
+        logger.error('Data directory already exists on host %s' % options.standby_host)
+        if array.standbyMaster:
+            logger.error('If you want to just start the stopped standby, use the -n option')
+        if options.standby_host == array.master.hostname:
+            logger.error(
+                'If you want to initialize a new standby on the same host as '
+                'the master (not recommended), use -S and -P to specify a new '
+                'data directory and port'
+            )
+        raise GpInitStandbyException('master data directory exists')
+
+    # disallow to create the same host/port
+    if (options.standby_host == array.master.hostname and
+            (not options.standby_port or
+                options.standby_port == array.master.port)):
+        raise GpInitStandbyException('cannot create standby on the same host and port')
+
+
+#-------------------------------------------------------------------------
+def get_add_standby_sql(hostname, address, datadir, port=None):
+    """Returns the SQL for adding a standby master."""
+
+    if port is not None:
+        return "select gp_add_master_standby('%s', '%s', '%s', %d)" % (hostname, address, datadir, port)
+    else:
+        return "select gp_add_master_standby('%s', '%s', '%s')" % (hostname, address, datadir)
+
+
+#-------------------------------------------------------------------------
+def get_remove_standby_sql():
+    """Returns the SQL for removing a standby master."""
+
+    sql = "select gp_remove_master_standby()"
+    return sql
+
+
+#-------------------------------------------------------------------------
+def add_standby_to_catalog(options, standby_datadir):
+    """Adds the standby to the catalog."""
+    
+    global g_init_standby_state
+    
+    try:
+        g_init_standby_state=INIT_STANDBY_STATE_UPDATE_CATALOG
+        dburl = getDbUrlForInitStandby()
+        conn = dbconn.connect(dburl, utility=True)
+    
+        logger.info('Adding standby master to catalog...')
+    
+        sql = get_add_standby_sql(options.standby_host,
+                                  options.standby_host,
+                                  standby_datadir,
+                                  options.standby_port)
+    
+        dbconn.execSQL(conn, sql)
+        conn.commit()
+        conn.close()
+        logger.info('Database catalog updated successfully.')
+        array = gparray.GpArray.initFromCatalog(dburl, utility=True)
+        return array
+    except Exception, ex:
+        logger.error('Failed to add standby to master catalog.')
+        raise GpInitStandbyException(ex)
+
+
+#-------------------------------------------------------------------------  
+def remove_standby_from_catalog(options, array):
+    """Removes the standby from the catalog."""
+    # update catalog
+    try:
+        dburl = getDbUrlForInitStandby()
+        conn = dbconn.connect(dburl, utility=True)
+
+        logger.info('Removing standby master from catalog...')
+        sql = get_remove_standby_sql()
+        
+        dbconn.execSQL(conn, sql)
+        conn.commit()
+        conn.close()
+        
+        logger.info('Database catalog updated successfully.')
+
+    except Exception, ex:
+        logger.error('Failed to remove standby from master catalog.')
+        raise GpInitStandbyException(ex)
+        
+
+#-------------------------------------------------------------------------
+def copy_master_datadir_to_standby(options, array, standby_datadir):
+    """Copies the data directory from the master to the standby."""
+
+    global g_init_standby_state
+
+    g_init_standby_state=INIT_STANDBY_STATE_COPY_FILES
+
+    # WALREP_FIXME: Handle tablespaces. I think we need to update the dbid
+    # here in the data directory here already, and teach pg_basebackup to
+    # map the per-dbid directories to the new dbid.
+    
+    cmd = PgBaseBackup(pgdata=standby_datadir,
+                       host=array.master.getSegmentHostName(),
+                       port=str(array.master.getSegmentPort()),
+                       ctxt=base.REMOTE,
+                       remoteHost=options.standby_host,
+                       forceoverwrite=True,
+                       target_gp_dbid=array.standbyMaster.dbid)
+    try:
+        cmd.run(validateAfter=True)
+    except Exception, ex:
+        logger.error('Failed to copy data directory from master to standby.')
+        raise GpInitStandbyException(ex)
+
+
+#-------------------------------------------------------------------------
+def update_postgresql_conf(options, array):
+    """
+    Updates postgresql.conf to reflect the correct values.
+    """
+
+    master = array.master
+    standby = array.standbyMaster
+    if master.getSegmentPort() == standby.getSegmentPort():
+        # nothing to do
+        return
+    cmd_name = "add port parameter on host %s" % standby.getSegmentHostName()
+    cmd = gp.GpConfigHelper(cmd_name,
+                            standby.getSegmentDataDirectory(),
+                            'port',
+                            value=str(standby.getSegmentPort()),
+                            ctxt=gp.REMOTE,
+                            remoteHost=standby.getSegmentHostName())
+    cmd.run(validateAfter=True)
+
+#-------------------------------------------------------------------------
+
+def stop_standby(array):
+    #stop standby master if it is running
+    try:
+        standby_pid = gp.getPostmasterPID(array.standbyMaster.getSegmentHostName(),
+                                          array.standbyMaster.getSegmentDataDirectory())
+        if standby_pid > 0:
+            # stop it
+            logger.info('Stopping standby master on %s' %
+                        array.standbyMaster.getSegmentHostName())
+            gp.SegmentStop.remote('stop standby',
+                                  array.standbyMaster.getSegmentHostName(),
+                                  array.standbyMaster.getSegmentDataDirectory())
+    except Exception, ex:
+        raise Exception('Failed to stop postmaster process on standby master, %s' % ex)
+
+#-------------------------------------------------------------------------
+# Rollback functions
+#-------------------------------------------------------------------------
+
+def undo_catalog_update(options, array):
+    """Undoes the catalog updates."""
+    
+    try:
+        remove_standby_from_catalog(options, array)
+    except:
+        # Can't undo because the update never occured.  Ok to 
+        # ignore this exception and continue
+        pass
+        
+#-------------------------------------------------------------------------
+def undo_update_pg_hba_conf(array):
+    """Undoes the pg_hba.conf update."""
+    
+    logger.debug('Restoring pg_hba.conf file on master...')
+    master_data_dir = array.master.getSegmentDataDirectory()
+    os.system('mv %s/%s %s/pg_hba.conf' % (master_data_dir, PG_HBA_BACKUP, master_data_dir))
+    # make it effective
+    pg.ReloadDbConf.local('pg_ctl reload', array.master)
+
+
+#-------------------------------------------------------------------------
+# Main
+#-------------------------------------------------------------------------
+try:
+    # setup logging
+    logger = get_default_logger()
+    setup_tool_logging(EXECNAME,unix.getLocalHostname(),unix.getUserName())
+
+    (options, args) = parseargs()
+
+    # Turn on debug logging if needed
+    if options.debug:
+        enable_verbose_logging()
+    if options.quiet:
+        quiet_stdout_logging()
+
+    # Kick off the work
+    if options.remove:
+        delete_standby(options)
+        logger.info('Successfully removed standby master')
+    elif options.no_update:
+        check_and_start_standby()
+    else:
+        create_standby(options)
+        logger.info('Successfully created standby master on %s' % options.standby_host)
+
+except KeyboardInterrupt:
+    logger.error('User canceled')
+    sys.exit(2)
+except Exception, ex:
+    if options.remove:
+        logger.error('Error removing standby master: %s' % str(ex))
+    else:
+        logger.error('Error initializing standby master: %s' % str(ex))
+    if options.debug:
+        logger.exception(ex)
+    sys.exit(2)
+
+sys.exit(0)

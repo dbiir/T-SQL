@@ -1,0 +1,125 @@
+FROM ubuntu:19.10
+
+ENV DEBIAN_FRONTEND noninteractive
+
+COPY ./id_rsa /
+COPY ./id_rsa.pub /
+COPY ./linux-5.4.8.tar.xz /
+COPY ./protobuf-all-3.9.1.tar.gz /
+
+RUN echo 'deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu/ eoan main restricted universe multiverse' > /etc/apt/sources.list && \
+    echo 'deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu/ eoan-updates main restricted universe multiverse' >> /etc/apt/sources.list && \
+    echo 'deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu/ eoan-security main restricted universe multiverse' >> /etc/apt/sources.list && \
+    apt-get update -y && \
+    apt-get install -y apt-utils && \
+    apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+    autoconf \
+    automake \
+    g++ \
+    libbz2-dev \
+    libgflags-dev \
+    liblz4-dev \
+    libsnappy-dev \
+    libtool \
+    libzstd-dev \
+    make \
+    bison \
+    ccache \
+    curl \
+    dirmngr \
+    flex \
+    gdb \
+    git-core \
+    iproute2 \
+    iputils-ping \
+    jq \
+    libapr1-dev \
+    libcurl4-gnutls-dev \
+    libevent-dev \
+    libpam-dev \
+    libperl-dev \
+    libreadline-dev \
+    libssl-dev \
+    libxml2-dev \
+    libyaml-dev \
+    less \
+    locales \
+    net-tools \
+    openssh-server \
+    pkg-config \
+    python-dev \
+    python-pip \
+    rsync \
+    rsyslog \
+    ssh \
+    sudo \
+    time \
+    unzip \
+    vim \
+    wget \
+    zlib1g-dev && \
+    apt-get remove -y --purge systemd && \
+    apt-get autoremove -y --purge && \
+    apt-get autoclean -y && \
+    apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip install \
+    argparse \
+    behave \
+    enum34 \
+    epydoc \
+    Jinja2 \
+    lockfile \
+    logilab-astng \
+    logilab-common \
+    MarkupSafe \
+    mock \
+    parse \
+    parse-type \
+    pexpect \
+    PSI \
+    psutil \
+    ptyprocess \
+    PyYAML \
+    setuptools \
+    six \
+    unittest2 && \
+    rm -rf /root/.cache && \
+    locale-gen en_US.UTF-8 && \
+    cd / && \
+    xz -d linux-5.4.8.tar.xz && \
+    tar -xvf linux-5.4.8.tar 2>&1 > /dev/null && \
+    cd linux-5.4.8/tools/perf && \
+    make && \
+    make install && \
+    mv /root/bin/* /usr/bin/ && \
+    cd / && \
+    tar -zxvf protobuf-all-3.9.1.tar.gz 2>&1 > /dev/null && \
+    cd protobuf-3.9.1 && \
+    ./autogen.sh && \
+    ./configure --prefix=/usr && \
+    make -j32 && \
+    make install && \
+    cd / && \
+    rm -rf protobuf* linux-5.4.8* && \
+    echo "* soft nofile 2048000" >> /etc/security/limits.conf && \
+    echo "* hard nofile 2048000" >> /etc/security/limits.conf && \
+    echo "* soft nproc 204800" >> /etc/security/limits.conf && \
+    echo "* hard nproc 204800" >> /etc/security/limits.conf && \
+    useradd gpadmin -s /bin/bash && \
+    echo "gpadmin:gpadmin" | chpasswd 2> /dev/null && \
+    echo "gpadmin  ALL=(ALL)       NOPASSWD: ALL" > /etc/sudoers.d/gpadmin && \
+    mkdir -p /home/gpadmin/.ssh && \
+    touch /home/gpadmin/.ssh/authorized_keys && \
+    cat /id_rsa.pub > /home/gpadmin/.ssh/authorized_keys && \
+    cp /id_rsa* /home/gpadmin/.ssh/ && \
+    touch /home/gpadmin/.ssh/known_hosts && \
+    chmod 700 /home/gpadmin/.ssh && \
+    chmod 600 /home/gpadmin/.ssh/* && \
+    rm -rf /id_rsa* && \
+    sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config && \
+    mkdir /run/sshd
+

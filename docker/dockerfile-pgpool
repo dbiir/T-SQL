@@ -1,0 +1,29 @@
+FROM yusu-compile:latest
+
+COPY ./gpdb /home/gpadmin/gpdb
+COPY ./pcp.conf /
+COPY ./pgpool.conf /
+COPY ./start-pgpool.sh /
+
+RUN . /home/gpadmin/gp/greenplum_path.sh && \
+    cd /home/gpadmin/gpdb/proxy && \
+    ./configure --prefix=/home/gpadmin/pgpool && \
+    make -j8 && \
+    make install && \
+    cd /home/gpadmin/gpdb/proxy/src/sql/pgpool-recovery && \
+    make -j8 && \
+    make install && \
+    cd /home/gpadmin/gpdb/proxy/src/sql/pgpool-regclass && \
+    make -j8 && \
+    make install && \
+    mkdir -p /home/gpadmin/pgpool/run/pgpool && \
+    mkdir /home/gpadmin/pgpool/testsql && \
+    mv /home/gpadmin/gpdb/proxy/src/sql/pgpool-recovery/pgpool-recovery.sql /home/gpadmin/pgpool/testsql/ && \
+    mv /home/gpadmin/gpdb/proxy/src/sql/pgpool-regclass/pgpool-regclass.sql /home/gpadmin/pgpool/testsql/ && \
+    mv /home/gpadmin/gpdb/proxy/src/sql/insert_lock.sql /home/gpadmin/pgpool/testsql/ && \
+    cd /home/gpadmin/pgpool/etc && \
+    cp /pgpool.conf pgpool.conf && \
+    cp /pcp.conf pcp.conf && \
+    rm -rf /home/gpadmin/gpdb
+
+CMD [ "/bin/bash", "/start-pgpool.sh"]

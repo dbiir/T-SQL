@@ -1,0 +1,276 @@
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+./hammerdbcli:行8: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 权限不够
+./hammerdbcli: 第 8 行:exec: /home/gpadmin/penguindb/gpdb/contrib/pgbench/HammerDB-3.1/bin/tclsh8.6: 无法执行: 权限不够
+HammerDB CLI v3.1
+Copyright (C) 2003-2018 Steve Shaw
+Type "help" for a list of commands
+The xml is well-formed, applying configuration
+
+Error: invalid command name "!/bin/tclsh"
+SETTING CONFIGURATION
+Database set to PostgreSQL
+Benchmark set to TPC-C for PostgreSQL
+Changed connection:pg_host from localhost to 127.0.0.1 for PostgreSQL
+Changed connection:pg_port from 5432 to 15432 for PostgreSQL
+Changed tpcc:pg_user from tpcc to tpccheap for PostgreSQL
+Changed tpcc:pg_pass from tpcc to tpccheap for PostgreSQL
+Changed tpcc:pg_dbase from tpcc to tpccheap for PostgreSQL
+Clearing Script, reload script to activate new setting
+Script cleared
+Changed tpcc:pg_driver from test to timed for PostgreSQL
+Value 2 for tpcc:pg_rampup is the same as existing value 2, no change made
+Changed tpcc:pg_duration from 5 to 3 for PostgreSQL
+Changed tpcc:pg_raiseerror from false to true for PostgreSQL
+Script loaded, Type "print script" to view
+SEQUENCE STARTED
+16 VU TEST
+Vuser 1 created MONITOR - WAIT IDLE
+Vuser 2 created - WAIT IDLE
+Vuser 3 created - WAIT IDLE
+Vuser 4 created - WAIT IDLE
+Vuser 5 created - WAIT IDLE
+Vuser 6 created - WAIT IDLE
+Vuser 7 created - WAIT IDLE
+Vuser 8 created - WAIT IDLE
+Vuser 9 created - WAIT IDLE
+Vuser 10 created - WAIT IDLE
+Vuser 11 created - WAIT IDLE
+Vuser 12 created - WAIT IDLE
+Vuser 13 created - WAIT IDLE
+Vuser 14 created - WAIT IDLE
+Vuser 15 created - WAIT IDLE
+Vuser 16 created - WAIT IDLE
+Vuser 17 created - WAIT IDLE
+Logging activated
+to /tmp/hammerdb.log
+17 Virtual Users Created with Monitor VU
+RUNNING - PostgreSQL TPC-C Timed
+Vuser 1:RUNNING
+[10C[10CError in Virtual User 1: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 1:FINISHED FAILED
+[10CVuser 2:RUNNING
+[10C[10CError in Virtual User 2: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 2:FINISHED FAILED
+[10CVuser 3:RUNNING
+[10C[10CError in Virtual User 3: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 3:FINISHED FAILED
+[10CVuser 4:RUNNING
+[10C[10CError in Virtual User 4: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 4:FINISHED FAILED
+[10CVuser 5:RUNNING
+[10C[10CError in Virtual User 5: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 5:FINISHED FAILED
+[10CVuser 6:RUNNING
+[10C[10CError in Virtual User 6: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 6:FINISHED FAILED
+[10CVuser 7:RUNNING
+[10C[10CError in Virtual User 7: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 7:FINISHED FAILED
+[10CVuser 8:RUNNING
+[10C[10CError in Virtual User 8: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 8:FINISHED FAILED
+[10CVuser 9:RUNNING
+[10C[10CError in Virtual User 9: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 9:FINISHED FAILED
+[10CVuser 10:RUNNING
+[10C[10CError in Virtual User 10: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 10:FINISHED FAILED
+[10CVuser 11:RUNNING
+[10C[10CError in Virtual User 11: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 11:FINISHED FAILED
+[10CVuser 12:RUNNING
+[10C[10CError in Virtual User 12: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 12:FINISHED FAILED
+[10CVuser 13:RUNNING
+[10C[10CError in Virtual User 13: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 13:FINISHED FAILED
+[10CVuser 14:RUNNING
+[10C[10CError in Virtual User 14: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 14:FINISHED FAILED
+[10CVuser 15:RUNNING
+[10C[10CError in Virtual User 15: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 15:FINISHED FAILED
+[10CVuser 16:RUNNING
+[10C[10CError in Virtual User 16: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 16:FINISHED FAILED
+[10CVuser 17:RUNNING
+[10C[10CError in Virtual User 17: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 17:FINISHED FAILED
+[10CALL VIRTUAL USERS COMPLETE
+HammerDB CLI v3.1
+Copyright (C) 2003-2018 Steve Shaw
+Type "help" for a list of commands
+The xml is well-formed, applying configuration
+
+Error: invalid command name "!/bin/tclsh"
+SETTING CONFIGURATION
+Database set to PostgreSQL
+Benchmark set to TPC-C for PostgreSQL
+Changed connection:pg_host from localhost to 127.0.0.1 for PostgreSQL
+Changed connection:pg_port from 5432 to 15432 for PostgreSQL
+Changed tpcc:pg_user from tpcc to tpccheap for PostgreSQL
+Changed tpcc:pg_pass from tpcc to tpccheap for PostgreSQL
+Changed tpcc:pg_dbase from tpcc to tpccheap for PostgreSQL
+Clearing Script, reload script to activate new setting
+Script cleared
+Changed tpcc:pg_driver from test to timed for PostgreSQL
+Value 2 for tpcc:pg_rampup is the same as existing value 2, no change made
+Changed tpcc:pg_duration from 5 to 3 for PostgreSQL
+Changed tpcc:pg_raiseerror from false to true for PostgreSQL
+Script loaded, Type "print script" to view
+SEQUENCE STARTED
+16 VU TEST
+Vuser 1 created MONITOR - WAIT IDLE
+Vuser 2 created - WAIT IDLE
+Vuser 3 created - WAIT IDLE
+Vuser 4 created - WAIT IDLE
+Vuser 5 created - WAIT IDLE
+Vuser 6 created - WAIT IDLE
+Vuser 7 created - WAIT IDLE
+Vuser 8 created - WAIT IDLE
+Vuser 9 created - WAIT IDLE
+Vuser 10 created - WAIT IDLE
+Vuser 11 created - WAIT IDLE
+Vuser 12 created - WAIT IDLE
+Vuser 13 created - WAIT IDLE
+Vuser 14 created - WAIT IDLE
+Vuser 15 created - WAIT IDLE
+Vuser 16 created - WAIT IDLE
+Vuser 17 created - WAIT IDLE
+Logging activated
+to /tmp/hammerdb.log
+17 Virtual Users Created with Monitor VU
+RUNNING - PostgreSQL TPC-C Timed
+Vuser 1:RUNNING
+[10C[10CError in Virtual User 1: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 1:FINISHED FAILED
+[10CVuser 2:RUNNING
+[10C[10CError in Virtual User 2: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 2:FINISHED FAILED
+[10CVuser 3:RUNNING
+[10C[10CError in Virtual User 3: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 3:FINISHED FAILED
+[10CVuser 4:RUNNING
+[10C[10CError in Virtual User 4: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 4:FINISHED FAILED
+[10CVuser 5:RUNNING
+[10C[10CError in Virtual User 5: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 5:FINISHED FAILED
+[10CVuser 6:RUNNING
+[10C[10CError in Virtual User 6: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 6:FINISHED FAILED
+[10CVuser 7:RUNNING
+[10C[10CError in Virtual User 7: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 7:FINISHED FAILED
+[10CVuser 8:RUNNING
+[10C[10CError in Virtual User 8: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 8:FINISHED FAILED
+[10CVuser 9:RUNNING
+[10C[10CError in Virtual User 9: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 9:FINISHED FAILED
+[10CVuser 10:RUNNING
+[10C[10CError in Virtual User 10: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 10:FINISHED FAILED
+[10CVuser 11:RUNNING
+[10C[10CError in Virtual User 11: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 11:FINISHED FAILED
+[10CVuser 12:RUNNING
+[10C[10CError in Virtual User 12: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 12:FINISHED FAILED
+[10CVuser 13:RUNNING
+[10C[10CError in Virtual User 13: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 13:FINISHED FAILED
+[10CVuser 14:RUNNING
+[10C[10CError in Virtual User 14: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 14:FINISHED FAILED
+[10CVuser 15:RUNNING
+[10C[10CError in Virtual User 15: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 15:FINISHED FAILED
+[10CVuser 16:RUNNING
+[10C[10CError in Virtual User 16: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 16:FINISHED FAILED
+[10CVuser 17:RUNNING
+[10C[10CError in Virtual User 17: Connection to database failed
+FATAL:  no pg_hba.conf entry for host "127.0.0.1", user "tpccheap", database "tpccheap"
+
+[10CVuser 17:FINISHED FAILED
+[10CALL VIRTUAL USERS COMPLETE

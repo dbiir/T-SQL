@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: penguindb-runtest
+spec:
+  selector:
+    matchLabels:
+      suitformaster: right
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        suitformaster: right
+    spec:
+      nodeSelector:
+        suitformaster: right
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      containers:
+      - image: penguindb-runtest:latest
+        imagePullPolicy: Never
+        name: penguindb-runtest
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+      securityContext:
+        sysctls:
+        - name: kernel.shmall
+          value: "137438953472"
+        - name: kernel.shmmax
+          value: "137438953472"
+        - name: kernel.shmmni
+          value: "4096"
+        - name: kernel.sem
+          value: "2048 2048000 2048 40960"
+        - name: kernel.msgmnb
+          value: "65536"
+        - name: kernel.msgmax
+          value: "65536"
+        - name: kernel.msgmni
+          value: "2048"
+        - name: net.ipv4.ip_forward
+          value: "1"
+        - name: net.ipv4.conf.default.accept_source_route
+          value: "0"
+        - name: net.ipv4.conf.all.arp_filter
+          value: "1"
+        - name: net.ipv4.ip_local_port_range
+          value: "10000 65535"
+        - name: net.core.somaxconn
+          value: "2048"
+

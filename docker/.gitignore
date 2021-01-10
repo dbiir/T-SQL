@@ -1,0 +1,7 @@
+id_rsa*
+*.gz
+gpdb
+iplist*
+seg_*
+linux*
+

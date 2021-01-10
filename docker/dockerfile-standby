@@ -1,0 +1,8 @@
+FROM yusu-compile:latest
+
+RUN mkdir -p /home/gpadmin/gpdata/gpmaster && \
+    chown -R gpadmin:gpadmin /home/gpadmin && \
+    mkdir -p /data/corefile && \
+    chmod 777 /data/corefile
+
+CMD ["/bin/bash", "-c", "ulimit -c unlimited; service ssh start; tail -f /dev/null"]

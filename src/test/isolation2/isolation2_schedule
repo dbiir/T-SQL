@@ -1,0 +1,223 @@
+test: setup
+
+test: ao_partition_lock
+test: dml_on_root_locks_all_parts
+
+test: select_dropped_table
+# test update hash col under utility mode
+test: update_hash_col_utilitymode
+
+# test delete/update when there are tuples with wrong distribution on segments.
+test: modifytable_with_bad_distribution
+
+# Tests for crash recovery
+test: uao_crash_compaction_column
+test: uao_crash_compaction_row
+test: crash_recovery
+test: crash_recovery_redundant_dtx
+test: crash_recovery_dtm
+test: unlogged_heap_tables
+test: unlogged_appendonly_tables
+test: udf_exception_blocks_panic_scenarios
+
+# Tests on global deadlock detector
+test: select_for_update
+test: gdd/prepare
+test: gdd/dist-deadlock-01 gdd/dist-deadlock-04 gdd/dist-deadlock-05 gdd/dist-deadlock-06 gdd/dist-deadlock-07 gdd/dist-deadlock-102 gdd/dist-deadlock-103 gdd/dist-deadlock-104 gdd/dist-deadlock-106 gdd/non-lock-105
+# until we can improve below flaky case please keep it disabled
+ignore: gdd/non-lock-107
+# keep this in a separate group
+test: gdd/avoid-qd-deadlock
+test: gdd/prepare-for-local
+test: gdd/local-deadlock-03
+test: gdd/delete-deadlock-root-leaf-concurrent-op
+test: gdd/planner_insert_while_vacuum_drop
+test: gdd/update-deadlock-root-leaf-concurrent-op
+test: gdd/dml_locks_only_targeted_table_in_query
+# gdd end
+test: gdd/end
+
+# The following test injects a fault at a generic location
+# (StartTransaction).  The fault can be easily triggered by a
+# concurrent test, so run the test by itself.
+test: deadlock_under_entry_db_singleton
+
+test: starve_case pg_views_concurrent_drop alter_blocks_for_update_and_viceversa drop_rename reader_waits_for_lock resource_queue misc vacuum_drop_phase_ao
+# below test(s) inject faults so each of them need to be in a separate group
+test: pg_terminate_backend
+
+# this case contains fault injection, must be put in a separate test group
+test: terminate_in_gang_creation
+
+# below case will cause failures on catalog changes,
+# please keep it in a separate test group
+test: gpexpand_catalog_lock
+
+test: reindex
+test: reindex_gpfastsequence
+test: commit_transaction_block_checkpoint
+test: instr_in_shmem_setup
+test: instr_in_shmem_terminate
+test: vacuum_recently_dead_tuple_due_to_distributed_snapshot
+test: invalidated_toast_index
+test: distributed_snapshot
+test: gp_collation
+test: ao_upgrade
+
+# below test utilizes fault injectors so it needs to be in a group by itself
+test: external_table
+
+# Tests on Append-Optimized tables (row-oriented).
+test: concurrent_index_creation_should_not_deadlock
+test: uao/alter_while_vacuum_row uao/alter_while_vacuum2_row
+test: uao/compaction_full_stats_row
+test: uao/compaction_utility_row
+test: uao/compaction_utility_insert_row
+test: uao/cursor_before_delete_row
+test: uao/cursor_before_deletevacuum_row
+test: uao/cursor_before_update_row
+test: uao/cursor_withhold_row
+test: uao/cursor_withhold2_row
+test: uao/delete_while_vacuum_row
+test: uao/insert_policy_row
+test: uao/insert_while_vacuum_row
+test: uao/max_concurrency_row segwalrep/master_xlog_switch
+test: uao/max_concurrency2_row
+test: uao/modcount_row
+test: uao/modcount_vacuum_row
+test: uao/parallel_delete_row
+test: uao/parallel_update_row
+test: uao/parallel_update_readcommitted_row
+test: uao/phantom_reads_row
+test: uao/phantom_reads_serializable_row
+test: uao/phantom_reads_delete_row
+test: uao/phantom_reads_delete_serializable_row
+test: uao/phantom_reads_update_row
+test: uao/phantom_reads_update_serializable_row
+test: uao/select_after_vacuum_row
+test: uao/select_after_vacuum_serializable_row
+test: uao/select_before_vacuum_row
+test: uao/select_while_delete_row
+test: uao/select_while_full_vacuum_row
+test: uao/select_while_vacuum_row
+test: uao/select_while_vacuum_serializable_row
+test: uao/select_while_vacuum_serializable2_row
+test: uao/selectinsert_while_vacuum_row
+test: uao/selectinsertupdate_while_vacuum_row
+test: uao/selectupdate_while_vacuum_row
+test: uao/update_while_vacuum_row
+test: uao/vacuum_self_serializable_row
+test: uao/vacuum_self_serializable2_row
+test: uao/vacuum_self_serializable3_row
+test: uao/vacuum_while_insert_row
+test: uao/vacuum_while_vacuum_row
+test: uao/vacuum_cleanup_row
+test: uao/insert_should_not_use_awaiting_drop_row
+test: reorganize_after_ao_vacuum_skip_drop truncate_after_ao_vacuum_skip_drop mark_all_aoseg_await_drop
+# below test(s) inject faults so each of them need to be in a separate group
+test: segwalrep/master_xlog_switch
+
+# Tests on Append-Optimized tables (column-oriented).
+test: uao/alter_while_vacuum_column uao/alter_while_vacuum2_column
+test: uao/compaction_full_stats_column
+test: uao/compaction_utility_column
+test: uao/compaction_utility_insert_column
+test: uao/cursor_before_delete_column
+test: uao/cursor_before_deletevacuum_column
+test: uao/cursor_before_update_column
+test: uao/cursor_withhold_column
+test: uao/cursor_withhold2_column
+test: uao/delete_while_vacuum_column
+test: uao/insert_policy_column
+test: uao/insert_while_vacuum_column
+test: uao/max_concurrency_column
+test: uao/max_concurrency2_column
+test: uao/modcount_column
+test: uao/modcount_vacuum_column
+test: uao/parallel_delete_column
+test: uao/parallel_update_column
+test: uao/parallel_update_readcommitted_column
+test: uao/phantom_reads_column
+test: uao/phantom_reads_serializable_column
+test: uao/phantom_reads_delete_column
+test: uao/phantom_reads_delete_serializable_column
+test: uao/phantom_reads_update_column
+test: uao/phantom_reads_update_serializable_column
+test: uao/select_after_vacuum_column
+test: uao/select_after_vacuum_serializable_column
+test: uao/select_before_vacuum_column
+test: uao/select_while_delete_column
+test: uao/select_while_full_vacuum_column
+test: uao/select_while_vacuum_column
+test: uao/select_while_vacuum_serializable_column
+test: uao/select_while_vacuum_serializable2_column
+test: uao/selectinsert_while_vacuum_column
+test: uao/selectinsertupdate_while_vacuum_column
+test: uao/selectupdate_while_vacuum_column
+test: uao/update_while_vacuum_column
+test: uao/vacuum_self_serializable_column
+test: uao/vacuum_self_serializable2_column
+test: uao/vacuum_self_serializable3_column
+test: uao/vacuum_while_insert_column
+test: uao/vacuum_while_vacuum_column
+test: uao/vacuum_cleanup_column
+test: uao/insert_should_not_use_awaiting_drop_column
+test: add_column_after_vacuum_skip_drop_column
+test: vacuum_after_vacuum_skip_drop_column
+
+# Tests for FTS
+test: fts_errors
+test: segwalrep/commit_blocking
+test: segwalrep/fts_unblock_primary
+test: segwalrep/mirror_promotion
+test: segwalrep/cancel_commit_pending_replication
+test: segwalrep/twophase_tolerance_with_mirror_promotion
+test: segwalrep/failover_with_many_records
+test: segwalrep/dtm_recovery_on_standby
+test: segwalrep/commit_blocking_on_standby
+test: pg_basebackup
+test: pg_basebackup_with_tablespaces
+test: fts_manual_probe
+
+# Reindex tests
+test: reindex/abort_reindex
+test: reindex/createidx_while_reindex_ao_partition
+test: reindex/createidx_while_reindex_ao_gist reindex/createidx_while_reindex_heap_gist reindex/createidx_while_reindex_aoco_gist
+test: reindex/createidx_while_reindex_idx_ao_btree reindex/createidx_while_reindex_idx_heap_btree reindex/createidx_while_reindex_idx_aoco_btree
+test: reindex/createidx_while_reindex_idx_ao_bitmap reindex/createidx_while_reindex_idx_heap_bitmap reindex/createidx_while_reindex_idx_aoco_bitmap
+test: reindex/reindextable_while_addpart_ao_part_btree reindex/reindextable_while_addpart_heap_part_btree reindex/reindextable_while_addpart_aoco_part_btree
+test: reindex/reindextable_while_altertable_ao_part_btree reindex/reindextable_while_altertable_heap_part_btree reindex/reindextable_while_altertable_aoco_part_btree
+test: reindex/reindextable_while_dropindex_ao_part_btree reindex/reindextable_while_dropindex_heap_part_btree reindex/reindextable_while_dropindex_aoco_part_btree
+test: reindex/reindextable_while_reindex_idx_ao_part_btree reindex/reindextable_while_reindex_idx_heap_part_btree reindex/reindextable_while_reindex_idx_aoco_part_btree
+test: reindex/reindextable_while_reindex_idx_ao_bitmap reindex/reindextable_while_reindex_idx_heap_bitmap reindex/reindextable_while_reindex_idx_aoco_bitmap
+test: reindex/serializable_reindex_with_drop_column_ao_part reindex/serializable_reindex_with_drop_column_heap
+test: reindex/serializable_reindex_with_drop_column_part_heap
+test: reindex/serializable_reindex_with_drop_index_ao reindex/serializable_reindex_with_drop_index_heap
+test: reindex/repeatable_read_reindex_with_insert_heap
+test: reindex/repeatable_read_reindex_with_insert_part_heap reindex/vacuum_analyze_while_reindex_ao_btree
+test: reindex/vacuum_while_reindex_ao_bitmap reindex/vacuum_while_reindex_heap_btree reindex/vacuum_while_reindex_heap_btree_toast
+
+# Cancel test
+test: cancel_plpython
+
+# Test concurrent UPDATE
+test: concurrent_update
+test: concurrent_update_distkeys
+test: concurrent_update_epq
+
+# Tests for getting numsegments in utility mode
+test: upgrade_numsegments
+# Memory accounting tests
+
+# OOM tests start
+test: create_memory_accounting_tables 
+test: setup_memory_accounting
+test: oom_mixed_1 oom_mixed_2 oom_simple
+test: restore_memory_accounting_default
+# Sleep and OOM tests end
+
+# Too many exec accounts test start
+test: setup_too_many_exec_accounts
+test: oom_too_many_accounts
+test: restore_memory_accounting_default
+#Too many exec account tests end

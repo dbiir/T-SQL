@@ -1,0 +1,8 @@
+#######################################################
+#  COPY this file in the same path and rename it to   #
+#  multimaster.conf, define the hostname/port/datadir #
+#  like below, then DELETE this guide around with '#' #
+#  run script gpinitmultimaster.                      #
+#  WARNING:port coflicit check won't be done for now !#    
+#######################################################
+HOSTNAME|PORT|DATADIR

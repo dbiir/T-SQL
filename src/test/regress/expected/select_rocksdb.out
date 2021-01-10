@@ -1,0 +1,64 @@
+drop table if exists select_rocksdb;
+create table if not exists select_rocksdb (
+    id int primary key,
+    name text
+) with(storage_engine=rocksdb);
+insert into select_rocksdb values (10, 'simon');
+insert into select_rocksdb values (20, 'luccy');
+insert into select_rocksdb values (17, 'lio');
+insert into select_rocksdb values (15, 'loy');
+insert into select_rocksdb values (16, 'trow');
+insert into select_rocksdb values (14, 'lily');
+insert into select_rocksdb values (12, 'lilly');
+select * from select_rocksdb;
+ id | name  
+----+-------
+ 10 | simon
+ 12 | lilly
+ 14 | lily
+ 15 | loy
+ 16 | trow
+ 17 | lio
+ 20 | luccy
+(7 rows)
+
+select * from select_rocksdb where id < 18;
+ id | name  
+----+-------
+ 10 | simon
+ 12 | lilly
+ 14 | lily
+ 15 | loy
+ 16 | trow
+ 17 | lio
+(6 rows)
+
+select * from select_rocksdb where id < 18 order by id;
+ id | name  
+----+-------
+ 10 | simon
+ 12 | lilly
+ 14 | lily
+ 15 | loy
+ 16 | trow
+ 17 | lio
+(6 rows)
+
+select * from select_rocksdb where id > 14 order by id using >;
+ id | name  
+----+-------
+ 20 | luccy
+ 17 | lio
+ 16 | trow
+ 15 | loy
+(4 rows)
+
+select * from select_rocksdb where id > 14 order by id using <;
+ id | name  
+----+-------
+ 15 | loy
+ 16 | trow
+ 17 | lio
+ 20 | luccy
+(4 rows)
+

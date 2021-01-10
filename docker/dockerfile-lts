@@ -1,0 +1,20 @@
+FROM yusu-alpha:latest
+
+COPY ./g1.tar.gz /root/
+COPY ./go1.13.5.linux-amd64.tar.gz /
+COPY ./gpdb /home/gpadmin/gpdb
+COPY ./start-lts.sh /
+
+RUN cd / && \
+    tar -zxvf go1.13.5.linux-amd64.tar.gz 2>&1 > /dev/null && \
+    rm go1.13.5.linux-amd64.tar.gz && \
+    cd /root && \
+    tar -zxvf g1.tar.gz 2>&1 > /dev/null && \
+    rm g1.tar.gz && \
+    ln -s /go/bin/go /usr/bin/go && \
+    cp -r /home/gpadmin/gpdb/depends/LTS . && \
+    rm -rf /home/gpadmin && \
+    cd LTS && \
+    make
+
+CMD [ "/bin/bash", "/start-lts.sh" ]

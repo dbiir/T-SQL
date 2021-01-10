@@ -1,0 +1,14 @@
+FROM yusu-compile:latest
+
+COPY ./gpinitsystem_config /
+COPY ./start-master.sh /
+
+RUN mkdir /home/gpadmin/conf && \
+    mv /gpinitsystem_config /home/gpadmin/conf/ && \
+    mkdir -p /home/gpadmin/gpdata/gpmaster && \
+    chown -R gpadmin:gpadmin /home/gpadmin && \
+    mkdir -p /data/corefile && \
+    chmod 777 /data/corefile
+
+CMD ["/bin/bash", "-c", "ulimit -c unlimited; sudo -u gpadmin /bin/bash /start-master.sh"]
+

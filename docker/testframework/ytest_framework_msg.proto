@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+service YTest {
+    rpc GetRequest (YTestRequest) returns (YTestResponse) {}
+}
+
+message YTestRequest {
+    // -1: save log
+    // 0: noop
+    // 1: enable cof
+    // 2: enable dff
+    // 3: enable dnpf
+    // 4: enable dpf
+    int32 type = 1;
+
+    SaveLogRequest slr = 2;
+
+    CPUOverloadFailRequest cofr = 3;
+    DamageFileFailRequest dffr = 4;
+    DisturbNetworkPackageFailRequest dnpfr = 5;
+    DisturbProcessFailRequest dpfr = 6;
+    // add new fail type here
+}
+
+message YTestResponse {
+    // -2: error
+    // -1: save log response
+    // 0: noop response
+    // 1: cof response
+    // 2: dff response
+    // 3: dnpf response
+    // 4: dpf response
+    int32 type = 1;
+    int32 error_type = 2;
+    string error_message = 3;
+
+    SaveLogResponse slr = 4;
+    
+    CPUOverloadFailResponse cofr = 5;
+    DamageFileFailResponse dffr = 6;
+    DisturbNetworkPackageFailResponse dnpfr = 7;
+    DisturbProcessFailResponse dpfr = 8;
+    // add new fail type here
+}
+
+message SaveLogRequest {
+    bool save_cof_log = 1;
+    bool save_dff_log = 2;
+    bool save_dnpf_log = 3;
+    bool save_dpf_log = 4;
+    // add new fail type here
+}
+
+message SaveLogResponse {
+    bool successfully = 1;
+}
+
+message CPUOverloadFailRequest {
+    // 0: noop
+    // 1: start fail with args
+    // 2: stop fail
+    // 3: set ratio
+    // 4: set timeslice
+    int32 type = 1;
+
+    float ratio = 2;
+    float timeslice = 3;
+}
+
+message CPUOverloadFailResponse {
+    // 0: noop
+    // 1: ok
+    // 2: error
+    int32 type = 1;
+    int32 error_type = 2;
+    string error_message = 3;
+}
+
+message DamageFileFailRequest {
+    // 0: noop
+    // 1: start fail with args
+    // 2: stop fail
+    // 3: set low
+    // 4: set high
+    // 5: set tab1
+    // 6: set tab2
+    int32 type = 1;
+
+    string target_directory = 2;
+    float low = 3;
+    float high = 4;
+    float tab1 = 5;
+    float tab2 = 6;
+}
+
+message DamageFileFailResponse {
+    // 0: noop
+    // 1: ok
+    // 2: error
+    int32 type = 1;
+    int32 error_type = 2;
+    string error_message = 3;
+}
+
+message DisturbNetworkPackageFailRequest {
+    // 0: noop
+    // 1: start fail with args
+    // 2: stop fail
+    int32 type = 1;
+    string target_network_device = 2;
+}
+
+message DisturbNetworkPackageFailResponse {
+    // 0: noop
+    // 1: ok
+    // 2: error
+    int32 type = 1;
+    int32 error_type = 2;
+    string error_message = 3;
+}
+
+message DisturbProcessFailRequest {
+    // 0: noop
+    // 1: start fail with args
+    // 2: stop fail
+    // 3: set Low
+    // 4: set High
+    // 5: set Tab1
+    // 6: set Tab2
+    int32 type = 1;
+    string keywords = 2;
+    float low = 3;
+    float high = 4;
+    float tab1 = 5;
+    float tab2 = 6;
+}
+
+message DisturbProcessFailResponse {
+    // 0: noop
+    // 1: ok
+    // 2: error
+    int32 type = 1;
+    int32 error_type = 2;
+    string error_message = 3;
+}
+
+// add new fail type here

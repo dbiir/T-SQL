@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: penguindb-lts
+spec:
+  selector:
+    matchLabels:
+      suitformaster: right
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        suitformaster: right
+    spec:
+      nodeSelector:
+        suitformaster: right
+      containers:
+      - image: penguindb-lts:latest
+        imagePullPolicy: Never
+        name: penguindb-lts

@@ -1,0 +1,69 @@
+# FILE NAME: gpinitsystem_config
+
+# Configuration file needed by the gpinitsystem
+
+################################################
+#### REQUIRED PARAMETERS
+################################################
+
+#### Name of this Greenplum system enclosed in quotes.
+ARRAY_NAME="Greenplum Data Platform"
+
+#### Naming convention for utility-generated data directories.
+SEG_PREFIX=gpseg
+
+#### Base number by which primary segment port numbers 
+#### are calculated.
+PORT_BASE=54321
+
+#### File system location(s) where primary segment data directories 
+#### will be created. The number of locations in the list dictate
+#### the number of primary segments that will get created per
+#### physical host (if multiple addresses for a host are listed in 
+#### the hostfile, the number of segments will be spread evenly across
+#### the specified interface addresses).
+declare -a DATA_DIRECTORY=(/home/gpadmin/gpdata/gpdatap)
+
+#### OS-configured hostname or IP address of the master host.
+MASTER_HOSTNAME=SELF_GENERATE_MASTER_HOSTNAME
+
+#### File system location where the master data directory 
+#### will be created.
+MASTER_DIRECTORY=/home/gpadmin/gpdata/gpmaster
+
+#### Port number for the master instance. 
+MASTER_PORT=5432
+
+#### Shell utility used to connect to remote hosts.
+TRUSTED_SHELL=ssh
+
+#### Maximum log file segments between automatic WAL checkpoints.
+CHECK_POINT_SEGMENTS=8
+
+#### Default server-side character set encoding.
+ENCODING=UNICODE
+
+################################################
+#### OPTIONAL MIRROR PARAMETERS
+################################################
+
+#### Base number by which mirror segment port numbers 
+#### are calculated.
+# MIRROR_PORT_BASE=54322
+
+#### File system location(s) where mirror segment data directories 
+#### will be created. The number of mirror locations must equal the
+#### number of primary locations as specified in the 
+#### DATA_DIRECTORY parameter.
+# declare -a MIRROR_DATA_DIRECTORY=(/home/gpadmin/gpdata/gpdatam)
+
+################################################
+#### OTHER OPTIONAL PARAMETERS
+################################################
+
+#### Create a database of this name after initialization.
+DATABASE_NAME=penguindb
+
+#### Specify the location of the host address file here instead of
+#### with the the -h option of gpinitsystem.
+MACHINE_LIST_FILE=/home/gpadmin/conf/seg_hosts

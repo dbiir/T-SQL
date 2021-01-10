@@ -1,0 +1,6 @@
+/postgres.bki
+/postgres.description
+/postgres.shdescription
+/cdb_init.sql
+/schemapg.h
+/pg_proc_combined.h

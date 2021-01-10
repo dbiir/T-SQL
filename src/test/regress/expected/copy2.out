@@ -1,0 +1,410 @@
+CREATE TEMP TABLE x (
+	a serial,
+	b int,
+	c text not null default 'stuff',
+	d text,
+	e text
+) WITH OIDS;
+NOTICE:  OIDS=TRUE is not recommended for user-created tables
+HINT:  Use OIDS=FALSE to prevent wrap-around of the OID counter.
+CREATE FUNCTION fn_x_before () RETURNS TRIGGER AS '
+  BEGIN
+		NEW.e := ''before trigger fired''::text;
+		return NEW;
+	END;
+' LANGUAGE plpgsql;
+CREATE FUNCTION fn_x_after () RETURNS TRIGGER AS '
+  BEGIN
+		UPDATE x set e=''after trigger fired'' where c=''stuff'';
+		return NULL;
+	END;
+' LANGUAGE plpgsql;
+CREATE TRIGGER trg_x_after AFTER INSERT ON x
+FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
+CREATE TRIGGER trg_x_before BEFORE INSERT ON x
+FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
+COPY x (a, b, c, d, e) from stdin;
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+COPY x (b, d) from stdin;
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+COPY x (b, d) from stdin;
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+COPY x (a, b, c, d, e) from stdin;
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+-- non-existent column in column list: should fail
+COPY x (xyz) from stdin;
+ERROR:  column "xyz" of relation "x" does not exist
+-- too many columns in column list: should fail
+COPY x (a, b, c, d, e, d, c) from stdin;
+ERROR:  column "d" specified more than once
+-- missing data: should fail
+COPY x from stdin;
+ERROR:  invalid input syntax for integer: ""
+CONTEXT:  COPY x, line 1, column a: ""
+COPY x from stdin;
+ERROR:  missing data for column "e"
+CONTEXT:  COPY x, line 1: "2000	230	23	23"
+COPY x from stdin;
+ERROR:  missing data for column "e"
+CONTEXT:  COPY x, line 1: "2001	231	\N	\N"
+-- extra data: should fail
+COPY x from stdin;
+ERROR:  extra data after last expected column
+CONTEXT:  COPY x, line 1: "2002	232	40	50	60	70	80"
+-- various COPY options: delimiters, oids, NULL string, encoding
+COPY x (b, c, d, e) from stdin with oids delimiter ',' null 'x';
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+COPY x from stdin WITH DELIMITER AS ';' NULL AS '';
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+COPY x from stdin WITH DELIMITER AS ':' NULL AS E'\\X' ENCODING 'sql_ascii';
+ERROR:  function cannot execute on a QE slice because it issues a non-SELECT statement
+CONTEXT:  SQL statement "UPDATE x set e='after trigger fired' where c='stuff'"
+PL/pgSQL function fn_x_after() line 3 at SQL statement
+-- check results of copy in
+SELECT * FROM x;
+ a | b | c | d | e 
+---+---+---+---+---
+(0 rows)
+
+-- COPY w/ oids on a table w/o oids should fail
+CREATE TABLE no_oids (
+	a	int,
+	b	int
+) WITHOUT OIDS;
+INSERT INTO no_oids (a, b) VALUES (5, 10);
+INSERT INTO no_oids (a, b) VALUES (20, 30);
+-- should fail
+COPY no_oids FROM stdin WITH OIDS;
+ERROR:  table "no_oids" does not have OIDs
+COPY no_oids TO stdout WITH OIDS;
+ERROR:  table "no_oids" does not have OIDs
+-- check copy out
+COPY x TO stdout;
+COPY x (c, e) TO stdout;
+COPY x (b, e) TO stdout WITH NULL 'I''m null';
+CREATE TEMP TABLE y (
+	col1 text,
+	col2 text
+);
+INSERT INTO y VALUES ('Jackson, Sam', E'\\h');
+INSERT INTO y VALUES ('It is "perfect".',E'\t');
+INSERT INTO y VALUES ('', NULL);
+COPY y TO stdout WITH CSV;
+"Jackson, Sam",\h
+"It is ""perfect"".",	
+"",
+COPY y TO stdout WITH CSV QUOTE '''' DELIMITER '|';
+Jackson, Sam|\h
+It is "perfect".|	
+''|
+COPY y TO stdout WITH CSV FORCE QUOTE col2 ESCAPE E'\\' ENCODING 'sql_ascii';
+"Jackson, Sam","\\h"
+"It is \"perfect\".","	"
+"",
+COPY y TO stdout WITH CSV FORCE QUOTE *;
+"Jackson, Sam","\h"
+"It is ""perfect"".","	"
+"",
+-- Repeat above tests with new 9.0 option syntax
+COPY y TO stdout (FORMAT CSV);
+"Jackson, Sam",\h
+"It is ""perfect"".",	
+"",
+COPY y TO stdout (FORMAT CSV, QUOTE '''', DELIMITER '|');
+Jackson, Sam|\h
+It is "perfect".|	
+''|
+COPY y TO stdout (FORMAT CSV, FORCE_QUOTE (col2), ESCAPE E'\\');
+"Jackson, Sam","\\h"
+"It is \"perfect\".","	"
+"",
+COPY y TO stdout (FORMAT CSV, FORCE_QUOTE *);
+"Jackson, Sam","\h"
+"It is ""perfect"".","	"
+"",
+\copy y TO stdout (FORMAT CSV)
+"Jackson, Sam",\h
+"It is ""perfect"".",	
+"",
+\copy y TO stdout (FORMAT CSV, QUOTE '''', DELIMITER '|')
+Jackson, Sam|\h
+It is "perfect".|	
+''|
+\copy y TO stdout (FORMAT CSV, FORCE_QUOTE (col2), ESCAPE E'\\')
+"Jackson, Sam","\\h"
+"It is \"perfect\".","	"
+"",
+\copy y TO stdout (FORMAT CSV, FORCE_QUOTE *)
+"Jackson, Sam","\h"
+"It is ""perfect"".","	"
+"",
+--test that we read consecutive LFs properly
+CREATE TEMP TABLE testnl (a int, b text, c int);
+COPY testnl FROM stdin CSV;
+-- test end of copy marker
+CREATE TEMP TABLE testeoc (a text);
+COPY testeoc FROM stdin CSV;
+COPY testeoc TO stdout CSV;
+a\.
+\.b
+c\.d
+"\."
+-- test handling of nonstandard null marker that violates escaping rules
+CREATE TEMP TABLE testnull(a int, b text);
+INSERT INTO testnull VALUES (1, E'\\0'), (NULL, NULL);
+COPY testnull TO stdout WITH NULL AS E'\\0';
+1	\\0
+\0	\0
+COPY testnull FROM stdin WITH NULL AS E'\\0';
+SELECT * FROM testnull;
+ a  | b  
+----+----
+  1 | \0
+    | 
+ 42 | \0
+    | 
+(4 rows)
+
+BEGIN;
+CREATE TABLE vistest (LIKE testeoc);
+COPY vistest FROM stdin CSV;
+COMMIT;
+SELECT * FROM vistest;
+ a  
+----
+ a0
+ b
+(2 rows)
+
+BEGIN;
+TRUNCATE vistest;
+COPY vistest FROM stdin CSV;
+SELECT * FROM vistest;
+ a  
+----
+ a1
+ b
+(2 rows)
+
+SAVEPOINT s1;
+TRUNCATE vistest;
+COPY vistest FROM stdin CSV;
+SELECT * FROM vistest;
+ a  
+----
+ d1
+ e
+(2 rows)
+
+COMMIT;
+SELECT * FROM vistest;
+ a  
+----
+ d1
+ e
+(2 rows)
+
+BEGIN;
+TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+SELECT * FROM vistest;
+ a  
+----
+ a2
+ b
+(2 rows)
+
+SAVEPOINT s1;
+TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+SELECT * FROM vistest;
+ a  
+----
+ d2
+ e
+(2 rows)
+
+COMMIT;
+SELECT * FROM vistest;
+ a  
+----
+ d2
+ e
+(2 rows)
+
+BEGIN;
+TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+SELECT * FROM vistest;
+ a 
+---
+ x
+ y
+(2 rows)
+
+COMMIT;
+TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+BEGIN;
+TRUNCATE vistest;
+SAVEPOINT s1;
+COPY vistest FROM stdin CSV FREEZE;
+ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+COMMIT;
+BEGIN;
+INSERT INTO vistest VALUES ('z');
+SAVEPOINT s1;
+TRUNCATE vistest;
+ROLLBACK TO SAVEPOINT s1;
+COPY vistest FROM stdin CSV FREEZE;
+ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+COMMIT;
+CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
+$$
+BEGIN
+	TRUNCATE vistest;
+EXCEPTION
+  WHEN OTHERS THEN
+	INSERT INTO vistest VALUES ('subxact failure');
+END;
+$$ language plpgsql;
+BEGIN;
+INSERT INTO vistest VALUES ('z');
+SELECT truncate_in_subxact();
+ truncate_in_subxact 
+---------------------
+ 
+(1 row)
+
+COPY vistest FROM stdin CSV FREEZE;
+SELECT * FROM vistest;
+ a  
+----
+ d4
+ e
+(2 rows)
+
+COMMIT;
+SELECT * FROM vistest;
+ a  
+----
+ d4
+ e
+(2 rows)
+
+-- Test FORCE_NOT_NULL and FORCE_NULL options
+CREATE TEMP TABLE forcetest (
+    a INT NOT NULL,
+    b TEXT NOT NULL,
+    c TEXT,
+    d TEXT,
+    e TEXT
+);
+\pset null NULL
+-- should succeed with no effect ("b" remains an empty string, "c" remains NULL)
+BEGIN;
+COPY forcetest (a, b, c) FROM STDIN WITH (FORMAT csv, FORCE_NOT_NULL(b), FORCE_NULL(c));
+COMMIT;
+SELECT b, c FROM forcetest WHERE a = 1;
+ b |  c   
+---+------
+   | NULL
+(1 row)
+
+-- should succeed, FORCE_NULL and FORCE_NOT_NULL can be both specified
+BEGIN;
+COPY forcetest (a, b, c, d) FROM STDIN WITH (FORMAT csv, FORCE_NOT_NULL(c,d), FORCE_NULL(c,d));
+COMMIT;
+SELECT c, d FROM forcetest WHERE a = 2;
+ c |  d   
+---+------
+   | NULL
+(1 row)
+
+-- should fail with not-null constraint violation
+BEGIN;
+COPY forcetest (a, b, c) FROM STDIN WITH (FORMAT csv, FORCE_NULL(b), FORCE_NOT_NULL(c));
+ERROR:  null value in column "b" violates not-null constraint
+DETAIL:  Failing row contains (3, null, , null, null).
+CONTEXT:  COPY forcetest, line 1: "3,,"""
+ROLLBACK;
+-- should fail with "not referenced by COPY" error
+BEGIN;
+COPY forcetest (d, e) FROM STDIN WITH (FORMAT csv, FORCE_NOT_NULL(b));
+ERROR:  FORCE NOT NULL column "b" not referenced by COPY
+ROLLBACK;
+-- should fail with "not referenced by COPY" error
+BEGIN;
+COPY forcetest (d, e) FROM STDIN WITH (FORMAT csv, FORCE_NULL(b));
+ERROR:  FORCE NULL column "b" not referenced by COPY
+ROLLBACK;
+\pset null ''
+-- test case with whole-row Var in a check constraint
+create table check_con_tbl (f1 int);
+create function check_con_function(check_con_tbl) returns bool as $$
+begin
+  raise notice 'input = %', row_to_json($1);
+  return $1.f1 > 0;
+end $$ language plpgsql immutable;
+alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
+\d+ check_con_tbl
+                    Table "public.check_con_tbl"
+ Column |  Type   | Modifiers | Storage | Stats target | Description 
+--------+---------+-----------+---------+--------------+-------------
+ f1     | integer |           | plain   |              | 
+Check constraints:
+    "check_con_tbl_check" CHECK (check_con_function(check_con_tbl.*))
+Distributed by: (f1)
+
+-- GPDB: Change from 1 (value in PG) to 2 for copy to make test deterministic.
+-- 2 and null are on seg1 in a 3-seg test environment.
+copy check_con_tbl from stdin;
+NOTICE:  input = {"f1":2}
+CONTEXT:  COPY check_con_tbl, line 1: "2"
+NOTICE:  input = {"f1":null}
+CONTEXT:  COPY check_con_tbl, line 2: "\N"
+copy check_con_tbl from stdin;
+NOTICE:  input = {"f1":0}
+CONTEXT:  COPY check_con_tbl, line 1: "0"
+ERROR:  new row for relation "check_con_tbl" violates check constraint "check_con_tbl_check"
+DETAIL:  Failing row contains (0).
+CONTEXT:  COPY check_con_tbl, line 1: "0"
+select * from check_con_tbl;
+ f1 
+----
+  2
+   
+(2 rows)
+
+DROP TABLE forcetest;
+DROP TABLE vistest;
+DROP FUNCTION truncate_in_subxact();
+DROP TABLE x, y;
+DROP FUNCTION fn_x_before();
+DROP FUNCTION fn_x_after();
+CREATE TABLE check_copy_with_oids (a int) WITH OIDS;
+NOTICE:  OIDS=TRUE is not recommended for user-created tables
+HINT:  Use OIDS=FALSE to prevent wrap-around of the OID counter.
+COPY check_copy_with_oids FROM stdin WITH (oids);
+SELECT oid, * from check_copy_with_oids;
+  oid  | a 
+-------+---
+ 12346 | 2
+ 12347 | 3
+ 12345 | 1
+(3 rows)
+
+DROP TABLE check_copy_with_oids;

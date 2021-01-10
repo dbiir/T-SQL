@@ -1,0 +1,7 @@
+FROM yusu-alpha:latest
+
+COPY ./gpdb /home/gpadmin/gpdb
+RUN cd /home/gpadmin/gpdb/depends/rocksdb && \
+    sed -i 's/INSTALL_PATH ?= \/usr\/local/INSTALL_PATH ?= \/usr/g' Makefile && \
+    make install-shared 2>/dev/null && \
+    rm -rf /home/gpadmin/gpdb

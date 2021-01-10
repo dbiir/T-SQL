@@ -1,0 +1,33 @@
+FROM yusu-beta:latest
+
+COPY ./bashrc /
+COPY ./dstat /dstat
+COPY ./gpdb /home/gpadmin/gpdb
+
+RUN cat /bashrc >> /etc/bash.bashrc && \
+    rm -rf /bashrc && \
+    cd /dstat && \
+    make install && \
+    cd /home/gpadmin/gpdb && \
+    rm -rf /dstat && \
+    ./configure \
+        --prefix=/home/gpadmin/gp \
+        --with-perl \
+        --with-python \
+        --with-libxml \
+        --disable-orca \
+        --disable-cassert \
+        --disable-pxf \
+        CFLAGS='-g3 -ggdb -O3 -fno-strict-aliasing -ldl' \
+        CXXFLAGS='-g3 -ggdb -O3 -fno-strict-aliasing -ldl' && \
+    sed -i 's/LIBS = -lbz2 -lxml2 -lrt -lzstd -lz -lreadline -lrt -lcrypt -ldl -lm  -lcurl/LIBS = -lstdc++ -lprotobuf -lrocksdb -lbz2 -lxml2 -lrt -lz -lreadline -lrt -lcrypt -ldl -lm -lcurl -lzstd -llz4 -lsnappy -lpthread/g' ./src/Makefile.global && \
+    make -j32 && \
+    make install && \
+    cp /home/gpadmin/gp/lib/python/gppylib/__init__.py /home/gpadmin/gp/lib/python/pygresql/__init__.py && \
+    cd /home/gpadmin/gpdb/contrib/pgbench && \
+    make && \
+    make install && \
+    mv /home/gpadmin/gpdb/contrib/pgbench/sysbench/insert-only.sql /home/gpadmin/ && \
+    mv /home/gpadmin/gpdb/contrib/pgbench/sysbench/update-only.sql /home/gpadmin/ && \
+    cd / && \
+    rm -rf /home/gpadmin/gpdb

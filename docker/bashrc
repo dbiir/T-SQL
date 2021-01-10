@@ -1,0 +1,27 @@
+source /home/gpadmin/gp/greenplum_path.sh
+
+export GPPORT=5432
+export PGPORT=5432
+export GPDATABASE=penguindb
+export PGDATABASE=penguindb
+export MASTER_DATA_DIRECTORY=/home/gpadmin/gpdata/gpmaster/gpseg-1
+
+GPMASTER=$HOME/gpdata/gpmaster/gpseg-1
+GPSRC=$HOME/gpdb
+GPCOMPILE=$HOME/gtmp/gpdb
+GPBIN=$HOME/gp
+GPBINHOME=$HOME
+GPCOMPILEHOME=$HOME/gtmp
+GPPRIMARYHOME=$HOME/gpdata/gpdatap
+GPMASTER=$HOME/gpdata/gpmaster/gpseg*
+GPINIT=$HOME/conf
+export GPINIT
+export GPMASTER
+export GPPRIMARYHOME
+export GPSRC
+export GPCOMPILE
+export GPBIN
+export GPCOMPILEHOME
+export GPBINHOME
+
+alias ll='ls -alF'

@@ -1,0 +1,51 @@
+# GPDB_91_MERGE_FIXME: GPDB acquires ExclusiveLock for update and delete SQL
+# statements.  This invalidates most of the isolation tests from upstream below.
+# E.g. an UPDATE step executed by isolationtester never returns because another
+# session run in the same permutation holds ExclusiveLock that blocks the step.
+# GPDB_94_MERGE_FIXME: Since the introduction of Global Deadlock Detector, an
+# UPDATE/DELETE no longer acquires ExclusiveLock. So we could perhaps enable
+# some of these now.
+# GPDB_94_MERGE_FIXME: But SELECT FOR UPDATE still acquires a whole-table
+# ExclusiveLock. Why?
+
+#test: simple-write-skew
+#test: receipt-report
+#test: temporal-range-integrity
+#test: project-manager
+#test: classroom-scheduling
+#test: total-cash
+#test: referential-integrity
+#test: ri-trigger
+#test: partial-index
+#test: two-ids
+#test: multiple-row-versions
+#test: index-only-scan
+#test: fk-contention
+#test: fk-deadlock
+#test: fk-deadlock2
+#test: eval-plan-qual
+#test: lock-update-delete
+#test: lock-update-traversal
+#test: read-write-unique
+#test: read-write-unique-2
+#test: read-write-unique-3
+#test: read-write-unique-4
+test: inherit-temp
+test: delete-abort-savept
+#test: delete-abort-savept-2
+#test: aborted-keyrevoke
+test: multixact-no-deadlock
+#test: multixact-no-forget
+#test: propagate-lock-delete
+test: drop-index-concurrently-1
+test: alter-table-1
+test: timeouts
+
+#test: prepared-transactions
+
+# GPDB-specific tests
+test: heap-repeatable-read-vacuum-freeze
+test: heap-repeatable-read-vacuum
+test: ao-repeatable-read-vacuum
+
+test: ao-insert-eof create_index_hot udf-insert-deadlock heap-repeatable-read ao-repeatable-read
